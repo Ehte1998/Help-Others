@@ -5,20 +5,20 @@ from fastapi import FastAPI, Form, File, UploadFile, HTTPException
 from pydantic import BaseModel
 from firebase_admin import credentials, initialize_app, firestore, auth
 
-# Load Firebase credentials from the environment variable (expects a file path)
-firebase_credentials_path = os.getenv("FIREBASE_CREDENTIALS")
+# Load Firebase credentials from environment variable instead of a file
+firebase_credentials_json = os.getenv("FIREBASE_CREDENTIALS")
 
-if not firebase_credentials_path or not os.path.exists(firebase_credentials_path):
-    raise RuntimeError(f"Firebase credentials file not found at: {firebase_credentials_path}")
+if not firebase_credentials_json:
+    raise RuntimeError("FIREBASE_CREDENTIALS environment variable is not set")
 
 try:
-    with open(firebase_credentials_path, "r") as file:
-        cred_dict = json.load(file)  # Load JSON content from file
+    # Convert JSON string from environment variable into a dictionary
+    cred_dict = json.loads(firebase_credentials_json)
     cred = credentials.Certificate(cred_dict)  # Initialize Firebase
     initialize_app(cred)
     db = firestore.client()  # Initialize Firestore
 except json.JSONDecodeError:
-    raise RuntimeError("FIREBASE_CREDENTIALS file is not valid JSON. Please check the content.")
+    raise RuntimeError("FIREBASE_CREDENTIALS contains invalid JSON. Please check the environment variable.")
 
 app = FastAPI()
 
@@ -101,7 +101,7 @@ def chat_system():
 # Debug Endpoint to Check Environment Variables
 @app.get("/debug/env")
 def debug_env():
-    return {"FIREBASE_CREDENTIALS": firebase_credentials_path}
+    return {"FIREBASE_CREDENTIALS": firebase_credentials_json[:100] + "...(truncated)"}  # Show only part of it for security
 
 import os
 

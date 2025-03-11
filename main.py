@@ -1,20 +1,24 @@
-import firebase_admin
-from firebase_admin import credentials, firestore, auth
-from fastapi import FastAPI, Form, File, UploadFile, HTTPException, Depends
-from pydantic import BaseModel
-import uuid
-import json
 import os
+import json
+import uuid
+from fastapi import FastAPI, Form, File, UploadFile, HTTPException
+from pydantic import BaseModel
+from firebase_admin import credentials, initialize_app, firestore, auth
 
-# Load Firebase Credentials from Environment Variable
-firebase_credentials = os.getenv("FIREBASE_CREDENTIALS")
-if firebase_credentials:
-    cred_dict = json.loads(firebase_credentials)
-    cred = credentials.Certificate(cred_dict)
-    firebase_admin.initialize_app(cred)
-    db = firestore.client()
-else:
-    raise RuntimeError("FIREBASE_CREDENTIALS environment variable is not set")
+# Load Firebase credentials from the environment variable (expects a file path)
+firebase_credentials_path = os.getenv("FIREBASE_CREDENTIALS")
+
+if not firebase_credentials_path or not os.path.exists(firebase_credentials_path):
+    raise RuntimeError(f"Firebase credentials file not found at: {firebase_credentials_path}")
+
+try:
+    with open(firebase_credentials_path, "r") as file:
+        cred_dict = json.load(file)  # Load JSON content from file
+    cred = credentials.Certificate(cred_dict)  # Initialize Firebase
+    initialize_app(cred)
+    db = firestore.client()  # Initialize Firestore
+except json.JSONDecodeError:
+    raise RuntimeError("FIREBASE_CREDENTIALS file is not valid JSON. Please check the content.")
 
 app = FastAPI()
 
@@ -34,7 +38,7 @@ async def register_user(
         user_id = user.uid
     except auth.EmailAlreadyExistsError:
         raise HTTPException(status_code=400, detail="Email already registered")
-    
+
     user_data = {"name": name, "email": email, "phone": phone, "id_proof": id_proof_filename, "verified": False}
     db.collection("users").document(user_id).set(user_data)
 
@@ -94,23 +98,13 @@ def accept_request(data: VolunteerAccept):
 def chat_system():
     return {"message": "Chat system coming soon!"}
 
-# Set Up Environment Variables
-PORT = int(os.getenv("PORT", 8000))  # Default to 8000 if not set
-DATABASE_URL = os.getenv("DATABASE_URL")
-SECRET_KEY = os.getenv("SECRET_KEY")
-
-# Run Uvicorn for Deployment (Only for Local Testing)
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=PORT)
-from fastapi import FastAPI
-import os
-
-app = FastAPI()
-
+# Debug Endpoint to Check Environment Variables
 @app.get("/debug/env")
 def debug_env():
-    firebase_credentials = os.getenv("FIREBASE_CREDENTIALS")
-    if firebase_credentials:
-        return {"FIREBASE_CREDENTIALS": firebase_credentials[:100] + "...(truncated)"}  # Show first 100 characters
-    return {"error": "FIREBASE_CREDENTIALS is not set!"}
+    return {"FIREBASE_CREDENTIALS": firebase_credentials_path}
+
+import os
+
+PORT = os.getenv("PORT", 8000)  # Default to 8000 if not set
+DATABASE_URL = os.getenv("DATABASE_URL")
+SECRET_KEY = os.getenv("SECRET_KEY")

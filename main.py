@@ -1,37 +1,41 @@
 import os
 import json
 import uvicorn
+import tempfile
 import firebase_admin
 from firebase_admin import credentials, firestore, auth
 from fastapi import FastAPI, Form, File, UploadFile, HTTPException, Depends
 from pydantic import BaseModel
 import uuid
 
-# Load Firebase Credentials from Environment Variable
+app = FastAPI()
+
+# ✅ Load Firebase Credentials from Environment Variable
 firebase_credentials = os.getenv("FIREBASE_CREDENTIALS")
 
 if not firebase_credentials:
     raise RuntimeError("FIREBASE_CREDENTIALS environment variable is not set")
 
 try:
-    cred_dict = json.loads(firebase_credentials)
-    cred = credentials.Certificate(cred_dict)
+    if firebase_credentials.startswith("{"):  # JSON string
+        cred_dict = json.loads(firebase_credentials)
+        cred = credentials.Certificate(cred_dict)
+    else:  # Assume it's a file path
+        cred = credentials.Certificate(firebase_credentials)
 except json.JSONDecodeError:
     raise RuntimeError("Invalid JSON format in FIREBASE_CREDENTIALS")
 
-# Initialize Firebase
+# ✅ Initialize Firebase (Only If Not Already Initialized)
 if not firebase_admin._apps:
     firebase_admin.initialize_app(cred)
     db = firestore.client()
 
-app = FastAPI()
-
-# Root Endpoint for Health Check
+# ✅ Root Endpoint for Health Check
 @app.get("/")
 def home():
     return {"message": "API is working on Railway!"}
 
-# User Registration
+# ✅ User Registration
 @app.post("/register/")
 async def register_user(
     name: str = Form(...),
@@ -53,7 +57,7 @@ async def register_user(
 
     return {"message": "User registered successfully", "user_id": user_id}
 
-# User Login
+# ✅ User Login
 class LoginRequest(BaseModel):
     email: str
     phone: str
@@ -68,7 +72,7 @@ def login_user(login_data: LoginRequest):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-# Help Request System
+# ✅ Help Request System
 class HelpRequest(BaseModel):
     user_id: str
     category: str
@@ -83,7 +87,7 @@ def request_help(request: HelpRequest):
     db.collection("help_requests").document(request_id).set(request_data)
     return {"message": "Help request created successfully", "request_id": request_id}
 
-# Volunteer System
+# ✅ Volunteer System
 @app.get("/view_requests/")
 def view_requests():
     requests = db.collection("help_requests").where("status", "==", "open").stream()
@@ -102,12 +106,12 @@ def accept_request(data: VolunteerAccept):
     request_ref.update({"status": "accepted", "volunteer_id": data.volunteer_id})
     return {"message": "Request accepted successfully"}
 
-# Placeholder for Chat System
+# ✅ Placeholder for Chat System
 @app.post("/chat/")
 def chat_system():
     return {"message": "Chat system coming soon!"}
 
-# Debug Endpoint for Checking ENV Variables
+# ✅ Debug Endpoint for Checking ENV Variables
 @app.get("/debug/env")
 def debug_env():
     return {
@@ -117,10 +121,11 @@ def debug_env():
         "SECRET_KEY": os.getenv("SECRET_KEY")
     }
 
-# Load Environment Variables
-PORT = int(os.getenv("PORT", 8000))  # Convert PORT to integer
+# ✅ Load Environment Variables
+PORT = int(os.getenv("PORT", "8000"))  # Convert to integer
 DATABASE_URL = os.getenv("DATABASE_URL")
 SECRET_KEY = os.getenv("SECRET_KEY")
 
+# ✅ Run Uvicorn Server
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=PORT)

@@ -147,4 +147,4 @@ PORT = int(os.getenv("PORT", "10000"))  # Default to 10000 if not assigned
 
 # ✅ Run Uvicorn Server
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=PORT, workers=1)
+    uvicorn.run(app, host="0.0.0.0", port=PORT, workers=1, loop="uvloop")

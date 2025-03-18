@@ -45,6 +45,11 @@ def debug_env():
         "SECRET_KEY": "SET" if os.getenv("SECRET_KEY") else "MISSING"
     }
 
+# ✅ Keep-Alive Route (Prevents Railway from Stopping API)
+@app.get("/ping")
+def ping():
+    return {"message": "Server is alive!"}
+
 # ✅ User Registration
 @app.post("/register/")
 async def register_user(
@@ -122,8 +127,8 @@ def chat_system():
     return {"message": "Chat system coming soon!"}
 
 # ✅ Load Environment Variables
-PORT = int(os.getenv("PORT", "8080"))  # Ensuring correct PORT handling in Railway
+PORT = int(os.getenv("PORT", 8000))  # Ensuring correct PORT handling in Railway
 
 # ✅ Run Uvicorn Server
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=PORT)
+    uvicorn.run(app, host="0.0.0.0", port=PORT, workers=1)

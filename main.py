@@ -34,7 +34,7 @@ else:
 # ✅ Root Endpoint for Health Check
 @app.get("/")
 def home():
-    return {"message": "API is working on Railway!"}
+    return {"message": "API is working on Render!"}
 
 # ✅ Debug Endpoint (No sensitive data exposed)
 @app.get("/debug/env")
@@ -46,7 +46,7 @@ def debug_env():
         "SECRET_KEY": "SET" if os.getenv("SECRET_KEY") else "MISSING"
     }
 
-# ✅ Keep-Alive Route (Prevents Railway from Stopping API)
+# ✅ Keep-Alive Route (Prevents Render from Stopping API)
 @app.get("/ping")
 def ping():
     return {"message": "Server is alive!"}
@@ -142,8 +142,8 @@ def accept_request(data: VolunteerAccept):
 def chat_system():
     return {"message": "Chat system coming soon!"}
 
-# ✅ Load Environment Variables
-PORT = int(os.getenv("PORT", 8000))  # Ensuring correct PORT handling in Railway
+# ✅ Ensure PORT Uses Render’s Assigned Port
+PORT = int(os.getenv("PORT", "10000"))  # Default to 10000 if not assigned
 
 # ✅ Run Uvicorn Server
 if __name__ == "__main__":

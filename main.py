@@ -13,22 +13,23 @@ app = FastAPI()
 firebase_credentials = os.getenv("FIREBASE_CREDENTIALS")
 
 if not firebase_credentials:
-    raise RuntimeError("🚨 FIREBASE_CREDENTIALS environment variable is missing!")
+    print("🚨 WARNING: FIREBASE_CREDENTIALS environment variable is missing! Server will continue running, but Firebase is not initialized.")
+    db = None  # Firebase is not initialized
+else:
+    try:
+        if firebase_credentials.startswith("{"):  # JSON format
+            cred_dict = json.loads(firebase_credentials)
+            cred = credentials.Certificate(cred_dict)
+        else:  # Assume it's a file path
+            cred = credentials.Certificate(firebase_credentials)
 
-try:
-    if firebase_credentials.startswith("{"):  # JSON format
-        cred_dict = json.loads(firebase_credentials)
-        cred = credentials.Certificate(cred_dict)
-    else:  # Assume it's a file path
-        cred = credentials.Certificate(firebase_credentials)
+        if not firebase_admin._apps:
+            firebase_admin.initialize_app(cred)
+            db = firestore.client()
+            print("✅ Firebase Initialized Successfully!")
 
-    if not firebase_admin._apps:
-        firebase_admin.initialize_app(cred)
-        db = firestore.client()
-        print("✅ Firebase Initialized Successfully!")
-
-except json.JSONDecodeError:
-    raise RuntimeError("🔥 Invalid JSON format in FIREBASE_CREDENTIALS!")
+    except json.JSONDecodeError:
+        print("🔥 ERROR: Invalid JSON format in FIREBASE_CREDENTIALS! Firebase is not initialized.")
 
 # ✅ Root Endpoint for Health Check
 @app.get("/")
@@ -58,6 +59,9 @@ async def register_user(
     phone: str = Form(...),
     id_proof: UploadFile = File(...)
 ):
+    if not db:
+        raise HTTPException(status_code=500, detail="Firebase is not initialized.")
+
     user_id = str(uuid.uuid4())
     id_proof_filename = f"{user_id}_{id_proof.filename}"
 
@@ -79,6 +83,9 @@ class LoginRequest(BaseModel):
 
 @app.post("/login")
 def login_user(login_data: LoginRequest):
+    if not db:
+        raise HTTPException(status_code=500, detail="Firebase is not initialized.")
+
     try:
         user = auth.get_user_by_email(login_data.email)
         if user.phone_number != login_data.phone:
@@ -96,6 +103,9 @@ class HelpRequest(BaseModel):
 
 @app.post("/request_help/")
 def request_help(request: HelpRequest):
+    if not db:
+        raise HTTPException(status_code=500, detail="Firebase is not initialized.")
+
     request_id = str(uuid.uuid4())
     request_data = request.dict()
     request_data["status"] = "open"
@@ -105,6 +115,9 @@ def request_help(request: HelpRequest):
 # ✅ Volunteer System
 @app.get("/view_requests/")
 def view_requests():
+    if not db:
+        raise HTTPException(status_code=500, detail="Firebase is not initialized.")
+
     requests = db.collection("help_requests").where("status", "==", "open").stream()
     return [{"request_id": req.id, **req.to_dict()} for req in requests]
 
@@ -114,6 +127,9 @@ class VolunteerAccept(BaseModel):
 
 @app.post("/accept_request/")
 def accept_request(data: VolunteerAccept):
+    if not db:
+        raise HTTPException(status_code=500, detail="Firebase is not initialized.")
+
     request_ref = db.collection("help_requests").document(data.request_id)
     request_doc = request_ref.get()
     if not request_doc.exists:

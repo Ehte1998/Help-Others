@@ -1,10 +1,9 @@
 import os
 import json
 import uvicorn
-import tempfile
 import firebase_admin
 from firebase_admin import credentials, firestore, auth
-from fastapi import FastAPI, Form, File, UploadFile, HTTPException, Depends
+from fastapi import FastAPI, Form, File, UploadFile, HTTPException
 from pydantic import BaseModel
 import uuid
 
@@ -14,26 +13,39 @@ app = FastAPI()
 firebase_credentials = os.getenv("FIREBASE_CREDENTIALS")
 
 if not firebase_credentials:
-    raise RuntimeError("FIREBASE_CREDENTIALS environment variable is not set")
+    raise RuntimeError("🚨 FIREBASE_CREDENTIALS environment variable is missing!")
 
 try:
-    if firebase_credentials.startswith("{"):  # JSON string
+    # ✅ If FIREBASE_CREDENTIALS is a JSON string, parse it
+    if firebase_credentials.startswith("{"):
         cred_dict = json.loads(firebase_credentials)
         cred = credentials.Certificate(cred_dict)
     else:  # Assume it's a file path
         cred = credentials.Certificate(firebase_credentials)
 except json.JSONDecodeError:
-    raise RuntimeError("Invalid JSON format in FIREBASE_CREDENTIALS")
+    raise RuntimeError("🔥 Invalid JSON format in FIREBASE_CREDENTIALS!")
 
 # ✅ Initialize Firebase (Only If Not Already Initialized)
 if not firebase_admin._apps:
     firebase_admin.initialize_app(cred)
     db = firestore.client()
 
+print("✅ Firebase Initialized Successfully!")
+
 # ✅ Root Endpoint for Health Check
 @app.get("/")
 def home():
     return {"message": "API is working on Railway!"}
+
+# ✅ Debug Endpoint for Checking ENV Variables
+@app.get("/debug/env")
+def debug_env():
+    return {
+        "FIREBASE_CREDENTIALS": "SET" if os.getenv("FIREBASE_CREDENTIALS") else "MISSING",
+        "PORT": os.getenv("PORT"),
+        "DATABASE_URL": os.getenv("DATABASE_URL"),
+        "SECRET_KEY": os.getenv("SECRET_KEY")
+    }
 
 # ✅ User Registration
 @app.post("/register/")
@@ -51,7 +63,7 @@ async def register_user(
         user_id = user.uid
     except auth.EmailAlreadyExistsError:
         raise HTTPException(status_code=400, detail="Email already registered")
-    
+
     user_data = {"name": name, "email": email, "phone": phone, "id_proof": id_proof_filename, "verified": False}
     db.collection("users").document(user_id).set(user_data)
 
@@ -110,16 +122,6 @@ def accept_request(data: VolunteerAccept):
 @app.post("/chat/")
 def chat_system():
     return {"message": "Chat system coming soon!"}
-
-# ✅ Debug Endpoint for Checking ENV Variables
-@app.get("/debug/env")
-def debug_env():
-    return {
-        "FIREBASE_CREDENTIALS": os.getenv("FIREBASE_CREDENTIALS"),
-        "PORT": os.getenv("PORT"),
-        "DATABASE_URL": os.getenv("DATABASE_URL"),
-        "SECRET_KEY": os.getenv("SECRET_KEY")
-    }
 
 # ✅ Load Environment Variables
 PORT = int(os.getenv("PORT", "8000"))  # Convert to integer

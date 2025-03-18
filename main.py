@@ -16,35 +16,33 @@ if not firebase_credentials:
     raise RuntimeError("🚨 FIREBASE_CREDENTIALS environment variable is missing!")
 
 try:
-    # ✅ If FIREBASE_CREDENTIALS is a JSON string, parse it
-    if firebase_credentials.startswith("{"):
+    if firebase_credentials.startswith("{"):  # JSON format
         cred_dict = json.loads(firebase_credentials)
         cred = credentials.Certificate(cred_dict)
     else:  # Assume it's a file path
         cred = credentials.Certificate(firebase_credentials)
+
+    if not firebase_admin._apps:
+        firebase_admin.initialize_app(cred)
+        db = firestore.client()
+        print("✅ Firebase Initialized Successfully!")
+
 except json.JSONDecodeError:
     raise RuntimeError("🔥 Invalid JSON format in FIREBASE_CREDENTIALS!")
-
-# ✅ Initialize Firebase (Only If Not Already Initialized)
-if not firebase_admin._apps:
-    firebase_admin.initialize_app(cred)
-    db = firestore.client()
-
-print("✅ Firebase Initialized Successfully!")
 
 # ✅ Root Endpoint for Health Check
 @app.get("/")
 def home():
     return {"message": "API is working on Railway!"}
 
-# ✅ Debug Endpoint for Checking ENV Variables
+# ✅ Debug Endpoint (No sensitive data exposed)
 @app.get("/debug/env")
 def debug_env():
     return {
         "FIREBASE_CREDENTIALS": "SET" if os.getenv("FIREBASE_CREDENTIALS") else "MISSING",
         "PORT": os.getenv("PORT"),
-        "DATABASE_URL": os.getenv("DATABASE_URL"),
-        "SECRET_KEY": os.getenv("SECRET_KEY")
+        "DATABASE_URL": "SET" if os.getenv("DATABASE_URL") else "MISSING",
+        "SECRET_KEY": "SET" if os.getenv("SECRET_KEY") else "MISSING"
     }
 
 # ✅ User Registration
@@ -124,9 +122,7 @@ def chat_system():
     return {"message": "Chat system coming soon!"}
 
 # ✅ Load Environment Variables
-PORT = int(os.getenv("PORT", "8000"))  # Convert to integer
-DATABASE_URL = os.getenv("DATABASE_URL")
-SECRET_KEY = os.getenv("SECRET_KEY")
+PORT = int(os.getenv("PORT", "8080"))  # Ensuring correct PORT handling in Railway
 
 # ✅ Run Uvicorn Server
 if __name__ == "__main__":

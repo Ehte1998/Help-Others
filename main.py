@@ -143,8 +143,8 @@ def chat_system():
     return {"message": "Chat system coming soon!"}
 
 # ✅ Ensure PORT Uses Render’s Assigned Port
-PORT = int(os.getenv("PORT", "10000"))  # Default to 10000 if not assigned
+PORT = int(os.getenv("PORT", "8000"))  # Default to 8000 if not assigned
 
-# ✅ Run Uvicorn Server
+# ✅ Run Uvicorn Server (For Local Testing)
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=PORT, workers=1, loop="uvloop")
+    uvicorn.run("main:app", host="0.0.0.0", port=PORT, workers=1, loop="uvloop")

@@ -2,7 +2,7 @@ import os
 import json
 import uvicorn
 import firebase_admin
-from firebase_admin import credentials, firestore, auth
+from firebase_admin import credentials, firestore, storage, auth
 from fastapi import FastAPI, Form, File, UploadFile, HTTPException
 from pydantic import BaseModel
 import uuid
@@ -11,6 +11,7 @@ app = FastAPI()
 
 # ✅ Load Firebase Credentials from Environment Variable
 firebase_credentials = os.getenv("FIREBASE_CREDENTIALS")
+firebase_storage_bucket = os.getenv("FIREBASE_STORAGE_BUCKET")
 
 if not firebase_credentials:
     print("🚨 WARNING: FIREBASE_CREDENTIALS environment variable is missing! Server will continue running, but Firebase is not initialized.")
@@ -24,7 +25,7 @@ else:
             cred = credentials.Certificate(firebase_credentials)
 
         if not firebase_admin._apps:
-            firebase_admin.initialize_app(cred)
+            firebase_admin.initialize_app(cred, {"storageBucket": firebase_storage_bucket})
             db = firestore.client()
             print("✅ Firebase Initialized Successfully!")
 
@@ -43,7 +44,8 @@ def debug_env():
         "FIREBASE_CREDENTIALS": "SET" if os.getenv("FIREBASE_CREDENTIALS") else "MISSING",
         "PORT": os.getenv("PORT"),
         "DATABASE_URL": "SET" if os.getenv("DATABASE_URL") else "MISSING",
-        "SECRET_KEY": "SET" if os.getenv("SECRET_KEY") else "MISSING"
+        "SECRET_KEY": "SET" if os.getenv("SECRET_KEY") else "MISSING",
+        "FIREBASE_STORAGE_BUCKET": "SET" if os.getenv("FIREBASE_STORAGE_BUCKET") else "MISSING"
     }
 
 # ✅ Keep-Alive Route (Prevents Render from Stopping API)
@@ -57,7 +59,7 @@ async def register_user(
     name: str = Form(...),
     email: str = Form(...),
     phone: str = Form(...),
-    id_proof: UploadFile = File(...)
+    id_proof: UploadFile = File(...),
 ):
     if not db:
         raise HTTPException(status_code=500, detail="Firebase is not initialized.")
@@ -147,4 +149,4 @@ PORT = int(os.getenv("PORT", "8000"))  # Default to 8000 if not assigned
 
 # ✅ Run Uvicorn Server (For Local Testing)
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=PORT, workers=1, loop="uvloop")
+    uvicorn.run("main:app", host="0.0.0.0", port=PORT, workers=1)
